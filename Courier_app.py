@@ -4,6 +4,7 @@ import pytesseract
 from pdf2image import convert_from_bytes
 import pandas as pd
 import re
+from io import BytesIO
 
 # ---------- Parsing Helpers ----------
 
@@ -54,7 +55,7 @@ def extract_from_pdf(uploaded_file):
     """Handle mixed PDF (text + scanned)"""
     data = []
     file_bytes = uploaded_file.read()  # ✅ read once
-    with pdfplumber.open(file_bytes) as pdf:
+    with pdfplumber.open(BytesIO(file_bytes)) as pdf:  # ✅ wrap with BytesIO
         for i, page in enumerate(pdf.pages):
             text = page.extract_text()
             if text:  # text-based slip
