@@ -1,10 +1,11 @@
 import streamlit as st
 import pdfplumber
 import pytesseract
-from pdf2image import convert_from_bytes
 import pandas as pd
 import re
 from io import BytesIO
+import fitz  # PyMuPDF
+from PIL import Image
 
 # ---------- Parsing Helpers ----------
 
@@ -51,22 +52,29 @@ def parse_text(text):
     return courier, consignment_no, address
 
 
+def pdf_page_to_image(file_bytes, page_number):
+    """Convert a PDF page to a PIL image using PyMuPDF"""
+    doc = fitz.open(stream=file_bytes, filetype="pdf")
+    page = doc[page_number]
+    pix = page.get_pixmap()
+    img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+    return img
+
+
 def extract_from_pdf(uploaded_file):
     """Handle mixed PDF (text + scanned)"""
     data = []
     file_bytes = uploaded_file.read()  # ✅ read once
-    with pdfplumber.open(BytesIO(file_bytes)) as pdf:  # ✅ wrap with BytesIO
+
+    # Use pdfplumber for text-based pages
+    with pdfplumber.open(BytesIO(file_bytes)) as pdf:
         for i, page in enumerate(pdf.pages):
             text = page.extract_text()
             if text:  # text-based slip
                 courier, consignment_no, address = parse_text(text)
             else:     # scanned slip
-                images = convert_from_bytes(
-                    file_bytes,
-                    first_page=i+1,
-                    last_page=i+1
-                )
-                text = pytesseract.image_to_string(images[0])
+                img = pdf_page_to_image(file_bytes, i)
+                text = pytesseract.image_to_string(img)
                 courier, consignment_no, address = parse_text(text)
 
             data.append([courier, consignment_no, address])
@@ -74,7 +82,7 @@ def extract_from_pdf(uploaded_file):
 
 # ---------- Streamlit UI ----------
 
-st.title("📦 Universal Courier Consignment Extractor")
+st.title("📦 Universal Courier Consignment Extractor (Poppler-Free)")
 uploaded_file = st.file_uploader("Upload your courier PDF", type="pdf")
 
 if uploaded_file:
