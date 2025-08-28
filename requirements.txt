@@ -1,6 +1,6 @@
 streamlit
 pdfplumber
-pytesseract
-pillow
 pdf2image
+pytesseract
 pandas
+Pillow
