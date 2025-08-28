@@ -1,5 +1,4 @@
 import streamlit as st
-import pdfplumber
 import pytesseract
 import pandas as pd
 import re
@@ -33,7 +32,7 @@ def parse_text(text):
         courier = "Unknown"
 
     # 3. Try Delhivery style (Shipping Address block)
-    addr_match = re.search(r"Shipping Address:\s*(.*?)\s*Support Details", text, re.S)
+    addr_match = re.search(r"Shipping Address:\s*(.*?)\s*(Support Details|Email ID|$)", text, re.S)
     if addr_match:
         address = addr_match.group(1).strip().replace("\n", " ")
 
@@ -62,31 +61,26 @@ def pdf_page_to_image(file_bytes, page_number):
 
 
 def extract_from_pdf(uploaded_file):
-    """Handle mixed PDF (text + scanned)"""
+    """Extract using OCR (since file is scanned image-based)"""
     data = []
-    file_bytes = uploaded_file.read()  # ✅ read once
+    file_bytes = uploaded_file.read()
 
-    # Use pdfplumber for text-based pages
-    with pdfplumber.open(BytesIO(file_bytes)) as pdf:
-        for i, page in enumerate(pdf.pages):
-            text = page.extract_text()
-            if text:  # text-based slip
-                courier, consignment_no, address = parse_text(text)
-            else:     # scanned slip
-                img = pdf_page_to_image(file_bytes, i)
-                text = pytesseract.image_to_string(img)
-                courier, consignment_no, address = parse_text(text)
+    doc = fitz.open(stream=file_bytes, filetype="pdf")
+    for i in range(len(doc)):
+        img = pdf_page_to_image(file_bytes, i)
+        text = pytesseract.image_to_string(img)
+        courier, consignment_no, address = parse_text(text)
+        data.append([courier, consignment_no, address])
 
-            data.append([courier, consignment_no, address])
     return data
 
 # ---------- Streamlit UI ----------
 
-st.title("📦 Universal Courier Consignment Extractor (Poppler-Free)")
-uploaded_file = st.file_uploader("Upload your courier PDF", type="pdf")
+st.title("📦 Courier Consignment Extractor (OCR Mode for Scanned PDFs)")
+uploaded_file = st.file_uploader("Upload your courier PDF (scanned or mobile photo)", type="pdf")
 
 if uploaded_file:
-    st.info("Processing your PDF... This may take a while ⏳")
+    st.info("Processing your scanned PDF using OCR... ⏳")
 
     extracted_data = extract_from_pdf(uploaded_file)
 
