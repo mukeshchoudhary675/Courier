@@ -1,7 +1,6 @@
-pdfplumber
-pdf2image
-pandas
-Pillow
 streamlit
-pytesseract
-pymupdf
+selenium
+webdriver-manager
+gspread
+google-auth
+pandas
